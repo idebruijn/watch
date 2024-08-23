@@ -41,7 +41,7 @@ watch 'll | grep .go'
 ## Install
 
 ```bash
-go get github.com/antonmedv/watch
+go install github.com/antonmedv/watch@master
 ```
 
 ## License
