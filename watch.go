@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,11 +14,32 @@ import (
 	"github.com/rivo/tview"
 )
 
-var version = "1.0.0"
+var (
+	version = "1.0.0"
+	sleep   = 2 * time.Second
+)
 
 func main() {
-	// Command to watch can come from stdin or arguments.
 	var command string
+
+	for i := 1; i < len(os.Args); i++ {
+		arg := os.Args[i]
+		switch arg {
+		case "-h", "--help":
+			fmt.Println("Usage: watch [command] [-interval N]")
+			fmt.Println("Options:")
+			fmt.Println("  -interval N    Set refresh rate in seconds (default: 2)")
+			fmt.Println("  -h, --help     Show this help message")
+			os.Exit(0)
+		case "-interval":
+			if i+1 < len(os.Args) {
+				if sec, err := strconv.Atoi(os.Args[i+1]); err == nil && sec > 0 {
+					sleep = time.Duration(sec) * time.Second
+					i++
+				}
+			}
+		}
+	}
 
 	if len(os.Args) <= 1 {
 		fmt.Fprintf(os.Stdout, "Welcome to watch %v.\nType command to watch.\n> ", version)
@@ -30,8 +52,6 @@ func main() {
 		command = strings.Join(os.Args[1:], " ")
 	}
 
-	startTime := time.Now()
-	sleep := 1 * time.Second
 	shell := defaultShell
 	if s, ok := os.LookupEnv("WATCH_COMMAND"); ok {
 		shell = s
@@ -54,24 +74,27 @@ func main() {
 		SetDynamicColors(true).
 		SetScrollable(true).
 		SetTextColor(tcell.ColorDefault)
-	viewer.
-		SetBackgroundColor(tcell.ColorDefault)
-	elapsed := tview.NewTextView().
-		SetTextColor(tcell.ColorBlack).
+	viewer.SetBackgroundColor(tcell.ColorDefault)
+
+	var statusBar *tview.Flex
+	var elapsed *tview.TextView
+
+	elapsed = tview.NewTextView().
+		SetTextColor(tcell.ColorLightCyan).
 		SetTextAlign(tview.AlignRight).
 		SetText("0s")
-	elapsed.
-		SetBackgroundColor(tcell.ColorLightCyan)
+	elapsed.SetBackgroundColor(tcell.ColorBlack)
+
 	title := tview.NewTextView().
-		SetTextColor(tcell.ColorBlack).
+		SetTextColor(tcell.ColorLightCyan).
 		SetText(command)
-	title.
-		SetBackgroundColor(tcell.ColorLightCyan)
-	statusBar := tview.NewFlex().
+	title.SetBackgroundColor(tcell.ColorBlack)
+
+	statusBar = tview.NewFlex().
 		AddItem(title, 0, 1, false).
 		AddItem(elapsed, 7, 1, false)
-	flex := tview.NewFlex().
-		SetDirection(tview.FlexRow)
+
+	flex := tview.NewFlex().SetDirection(tview.FlexRow)
 	flex.AddItem(viewer, 0, 1, true)
 	flex.AddItem(statusBar, 1, 1, false)
 	app.SetRoot(flex, true)
@@ -89,9 +112,31 @@ func main() {
 			app.QueueUpdateDraw(func() {
 				screen.Clear()
 				viewer.SetText(tview.TranslateANSI(buf.String()))
-				elapsed.SetText(fmt.Sprintf("%v", time.Since(startTime).Round(time.Second)))
 			})
-			time.Sleep(sleep)
+
+			startTime := time.Now()
+			smoothCheckerDuration := time.Duration(369)
+
+			for {
+				remainingTime := sleep - time.Since(startTime)
+
+				if remainingTime <= 0 {
+					if elapsed != nil {
+						app.QueueUpdateDraw(func() {
+							elapsed.SetText(fmt.Sprintf("%.2f s", 0.0))
+						})
+					}
+					break
+				}
+
+				if elapsed != nil {
+					app.QueueUpdateDraw(func() {
+						elapsed.SetText(fmt.Sprintf("%.2f s", remainingTime.Seconds()))
+					})
+				}
+
+				time.Sleep(smoothCheckerDuration * time.Millisecond)
+			}
 		}
 	}()
 

@@ -10,38 +10,33 @@ _watch_ tool rewritten in go.
 * configurable shell
 * windows support
 
-<a href="https://webpod.dev/?from=watch"><img src="https://webpod.dev/img/banner.png" alt="Webpod - deploy JavaScript apps" width="190" align="right"></a>
-
 ## Usage
 
 ```bash
 watch [command]
 ```
 
-Specify command for _watch_ by setting `WATCH_COMMAND` (`bash -cli` by default).
-
-```bash
-export WATCH_COMMAND=`fish -c`
-```
-
 ## Example
-
 ```bash
 watch git status
-```
-
-```bash
-watch curl wttr.in
-```
-
-```bash
-watch 'll | grep .go'
+watch 'kubectl get all | grep server'
 ```
 
 ## Install
 
 ```bash
-go install github.com/antonmedv/watch@master
+go install github.com/idebruijn/watch@latest
+```
+
+## Build locally
+```bash
+go install .
+```
+
+Specify command for _watch_ by setting `WATCH_COMMAND` (`bash -cli` by default).
+
+```bash
+export WATCH_COMMAND=`fish -c`
 ```
 
 ## License
